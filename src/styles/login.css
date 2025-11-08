@@ -1,0 +1,79 @@
+.login-wrapper {
+  background: linear-gradient(135deg, #e8f1ff 0%, #ffffff 50%, #e8f1ff 100%);
+  min-height: 100vh;
+}
+
+/* Hero image panel */
+.login-hero {
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  isolation: isolate;
+}
+
+.login-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(9, 72, 180, 0.65), rgba(13, 110, 253, 0.45));
+}
+
+.login-hero-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  color: #fff;
+  padding: 2rem 3rem;
+  z-index: 1;
+}
+
+/* Login Card */
+.login-card {
+  width: 100%;
+  max-width: 460px;
+  border-radius: 1rem;
+}
+
+/* Small SM badge */
+.brand-badge {
+  height: 48px;
+  width: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #0d6efd;
+  background: #e7f1ff;
+}
+
+/* Input animations */
+.animated-field .form-control {
+  border-radius: 0.75rem;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  border: 1px solid #cfe2ff;
+  background-color: #ffffff;
+}
+
+.animated-field .form-control:focus {
+  transform: scale(1.01);
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+
+/* Floating label enhancement */
+.animated-field label {
+  color: #6c757d;
+  transition: color 160ms ease;
+}
+
+.animated-field .form-control:focus ~ label {
+  color: #0d6efd;
+}
+
+.animated-field.has-value .form-control ~ label {
+  transform: scale(.85) translateY(-0.6rem);
+  opacity: 0.85;
+}
+
+.login-card:hover {
+  box-shadow: 0 0.7rem 2rem rgba(13,110,253,0.08);
+}
