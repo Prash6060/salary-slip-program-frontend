@@ -4,6 +4,9 @@ import "../styles/global.css";
 
 export default function EmployeesList() {
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [search, setSearch] = useState("");
 
   // sorting (Pay/Day only)
@@ -21,22 +24,55 @@ export default function EmployeesList() {
   const roleIconRef = useRef(null);
   const unitIconRef = useRef(null);
 
+  // ======= FETCH FROM API =======
   useEffect(() => {
-    setEmployees([
-      { name: "Rahul Sharma", wagePerDay: 950, role: "Supervisor", unit: "Unit A" },
-      { name: "Amit Singh", wagePerDay: 750, role: "Technician", unit: "Unit B" },
-      { name: "Pooja Patel", wagePerDay: 830, role: "Operator", unit: "Unit A" },
-      { name: "Rakesh Kumar", wagePerDay: 900, role: "Fitter", unit: "Unit C" },
-    ]);
+    const ctrl = new AbortController();
+    async function load() {
+      try {
+        setLoading(true);
+        setError("");
+        const res = await fetch("http://localhost:3000/api/employee/list-employee", {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) {
+          // backend sends 404 when no employees — treat as empty list (not a fatal error)
+          if (res.status === 404) {
+            setEmployees([]);
+            setLoading(false);
+            return;
+          }
+          const txt = await res.text();
+          throw new Error(txt || `HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        // your response shape: { data: [...] }
+        setEmployees(Array.isArray(json.data) ? json.data : []);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          setError("Failed to load employees. " + (err.message || ""));
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+    return () => ctrl.abort();
   }, []);
+  // ==============================
 
   // options for filters (always in sync with data)
-  const roleOptions = useMemo(() => ["all", ...Array.from(new Set(employees.map(e => e.role)))], [employees]);
-  const unitOptions = useMemo(() => ["all", ...Array.from(new Set(employees.map(e => e.unit)))], [employees]);
+  const roleOptions = useMemo(
+    () => ["all", ...Array.from(new Set(employees.map((e) => e.role)))],
+    [employees]
+  );
+  const unitOptions = useMemo(
+    () => ["all", ...Array.from(new Set(employees.map((e) => e.unit)))],
+    [employees]
+  );
 
   const handleSort = (field) => {
     if (field !== "wagePerDay") return;
-    if (sortField === field) setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    if (sortField === field) setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     else {
       setSortField(field);
       setSortOrder("asc");
@@ -44,17 +80,22 @@ export default function EmployeesList() {
   };
 
   // filtering pipeline
-  const filteredByName = employees.filter(e =>
-    e.name.toLowerCase().includes(search.toLowerCase())
+  const filteredByName = employees.filter((e) =>
+    (e.name || "").toLowerCase().includes(search.toLowerCase())
   );
-  const filteredByRole = selectedRole === "all" ? filteredByName : filteredByName.filter(e => e.role === selectedRole);
-  const filteredByUnit = selectedUnit === "all" ? filteredByRole : filteredByRole.filter(e => e.unit === selectedUnit);
+  const filteredByRole =
+    selectedRole === "all" ? filteredByName : filteredByName.filter((e) => e.role === selectedRole);
+  const filteredByUnit =
+    selectedUnit === "all" ? filteredByRole : filteredByRole.filter((e) => e.unit === selectedUnit);
 
   // apply sort
   const finalEmployees = [...filteredByUnit].sort((a, b) => {
     if (!sortField) return 0;
-    if (sortOrder === "asc") return a[sortField] > b[sortField] ? 1 : -1;
-    return a[sortField] < b[sortField] ? 1 : -1;
+    const av = a[sortField];
+    const bv = b[sortField];
+    if (av === bv) return 0;
+    if (sortOrder === "asc") return av > bv ? 1 : -1;
+    return av < bv ? 1 : -1;
   });
 
   // sort chevron
@@ -85,46 +126,41 @@ export default function EmployeesList() {
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    // place below/right of icon with small gap
     setPopoverPos({ top: r.bottom + 6 + window.scrollY, left: r.left + window.scrollX });
     setOpenFilter(type);
   };
 
-  // close on outside click / Esc / resize / scroll
-// close on outside click / Esc / OUTSIDE scroll/resize
-useEffect(() => {
-  const onDocClick = (e) => {
-    if (!openFilter) return;
-    if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+  // close on outside click / Esc / OUTSIDE scroll/resize
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!openFilter) return;
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpenFilter(null);
+      }
+    };
+
+    const onKey = (e) => e.key === "Escape" && setOpenFilter(null);
+
+    const onScroll = (e) => {
+      if (!openFilter) return;
+      if (popoverRef.current && popoverRef.current.contains(e.target)) return; // ignore popover's own scroll
       setOpenFilter(null);
-    }
-  };
+    };
 
-  const onKey = (e) => e.key === "Escape" && setOpenFilter(null);
+    const onResize = () => setOpenFilter(null);
 
-  // Close on scroll only if the scroll target is NOT the popover (or inside it)
-  const onScroll = (e) => {
-    if (!openFilter) return;
-    if (popoverRef.current && popoverRef.current.contains(e.target)) return; // ignore popover's own scroll
-    setOpenFilter(null);
-  };
+    document.addEventListener("mousedown", onDocClick, true);
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
 
-  const onResize = () => setOpenFilter(null);
-
-  document.addEventListener("mousedown", onDocClick, true);
-  document.addEventListener("keydown", onKey, true);
-  // capture scrolls from any element
-  document.addEventListener("scroll", onScroll, true);
-  window.addEventListener("resize", onResize);
-
-  return () => {
-    document.removeEventListener("mousedown", onDocClick, true);
-    document.removeEventListener("keydown", onKey, true);
-    document.removeEventListener("scroll", onScroll, true);
-    window.removeEventListener("resize", onResize);
-  };
-}, [openFilter]);
-
+    return () => {
+      document.removeEventListener("mousedown", onDocClick, true);
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [openFilter]);
 
   // popover content
   const PopoverList = ({ type, options, value, onSelect }) => (
@@ -147,7 +183,7 @@ useEffect(() => {
         {type === "role" ? "Filter by Role" : "Filter by Unit"}
       </div>
       <div className="py-1">
-        {options.map(opt => {
+        {options.map((opt) => {
           const label = opt === "all" ? (type === "role" ? "All Roles" : "All Units") : opt;
           const active = value === opt;
           return (
@@ -199,118 +235,117 @@ useEffect(() => {
           className="modern-search"
           style={{ minWidth: 120 }}
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div style={{ height: 4, background: "linear-gradient(90deg,#7db1ff,#4f86f7)" }} />
         <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table align-middle mb-0 table-animated">
-              <thead
-                style={{
-                  background: "linear-gradient(90deg, #bcd7ff 0%, #d9e7ff 45%, #f0f6ff 100%)",
-                  borderBottom: "3px solid #8ab3ff",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 3,
-                }}
-              >
-                <tr>
-                  <th className="py-3 px-3 text-dark fw-bold small text-uppercase">Sr.No</th>
-                  <th className="py-3 px-3 text-dark fw-bold small text-uppercase">Employee Name</th>
-
-                  {/* Pay/Day: sortable */}
-                  <th
-                    className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative"
-                    style={{ cursor: "pointer", whiteSpace: "nowrap" }}
-                    onClick={() => handleSort("wagePerDay")}
-                    title="Click to sort by Pay / Day"
-                  >
-                    Pay / Day (₹) {renderSortIcon("wagePerDay")}
-                  </th>
-
-                  {/* Role with filter icon */}
-                  <th className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative">
-                    <div className="d-inline-flex align-items-center">
-                      Role
-                      <span
-                        ref={roleIconRef}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPopover(openFilter === "role" ? null : "role");
-                        }}
-                        title="Filter by Role"
-                        aria-label="Filter by Role"
-                      >
-                        <FilterIcon active={openFilter === "role" || selectedRole !== "all"} />
-                      </span>
-                    </div>
-                  </th>
-
-                  {/* Unit with filter icon */}
-                  <th className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative">
-                    <div className="d-inline-flex align-items-center">
-                      Working Unit
-                      <span
-                        ref={unitIconRef}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPopover(openFilter === "unit" ? null : "unit");
-                        }}
-                        title="Filter by Unit"
-                        aria-label="Filter by Unit"
-                      >
-                        <FilterIcon active={openFilter === "unit" || selectedUnit !== "all"} />
-                      </span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {finalEmployees.length === 0 ? (
+          {loading ? (
+            <div className="py-5 text-center text-muted">Loading employees…</div>
+          ) : error ? (
+            <div className="py-5 text-center text-danger">{error}</div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table align-middle mb-0 table-animated">
+                <thead
+                  style={{
+                    background: "linear-gradient(90deg, #bcd7ff 0%, #d9e7ff 45%, #f0f6ff 100%)",
+                    borderBottom: "3px solid #8ab3ff",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 3,
+                  }}
+                >
                   <tr>
-                    <td colSpan={5} className="py-5 text-center text-muted">
-                      No employee records found.
-                    </td>
+                    <th className="py-3 px-3 text-dark fw-bold small text-uppercase">Sr.No</th>
+                    <th className="py-3 px-3 text-dark fw-bold small text-uppercase">Employee Name</th>
+
+                    {/* Pay/Day: sortable */}
+                    <th
+                      className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative"
+                      style={{ cursor: "pointer", whiteSpace: "nowrap" }}
+                      onClick={() => handleSort("wagePerDay")}
+                      title="Click to sort by Pay / Day"
+                    >
+                      Pay / Day (₹) {renderSortIcon("wagePerDay")}
+                    </th>
+
+                    {/* Role with filter icon */}
+                    <th className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative">
+                      <div className="d-inline-flex align-items-center">
+                        Role
+                        <span
+                          ref={roleIconRef}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPopover(openFilter === "role" ? null : "role");
+                          }}
+                          title="Filter by Role"
+                          aria-label="Filter by Role"
+                        >
+                          <FilterIcon active={openFilter === "role" || selectedRole !== "all"} />
+                        </span>
+                      </div>
+                    </th>
+
+                    {/* Unit with filter icon */}
+                    <th className="py-3 px-3 text-dark fw-bold small text-uppercase position-relative">
+                      <div className="d-inline-flex align-items-center">
+                        Working Unit
+                        <span
+                          ref={unitIconRef}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPopover(openFilter === "unit" ? null : "unit");
+                          }}
+                          title="Filter by Unit"
+                          aria-label="Filter by Unit"
+                        >
+                          <FilterIcon active={openFilter === "unit" || selectedUnit !== "all"} />
+                        </span>
+                      </div>
+                    </th>
                   </tr>
-                ) : (
-                  finalEmployees.map((emp, i) => (
-                    <tr key={i} className="employee-row">
-                      <td className="py-3 px-3 srno-cell">{i + 1}</td>
-                      <td className="py-3 px-3 fw-medium">{emp.name}</td>
-                      <td className="py-3 px-3">₹ {Number(emp.wagePerDay).toFixed(2)}</td>
-                      <td className="py-3 px-3">
-                        <span className="badge role-badge">{emp.role}</span>
+                </thead>
+
+                <tbody>
+                  {finalEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-5 text-center text-muted">
+                        No employee records found.
                       </td>
-                      <td className="py-3 px-3">{emp.unit}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    finalEmployees.map((emp, i) => (
+                      <tr key={emp._id || i} className="employee-row">
+                        <td className="py-3 px-3 srno-cell">{i + 1}</td>
+                        <td className="py-3 px-3 fw-medium">
+                          {emp.name}
+                          {emp.code ? <span className="text-muted small ms-2">({emp.code})</span> : null}
+                        </td>
+                        <td className="py-3 px-3">₹ {Number(emp.wagePerDay).toFixed(2)}</td>
+                        <td className="py-3 px-3">
+                          <span className="badge role-badge">{emp.role}</span>
+                        </td>
+                        <td className="py-3 px-3">{emp.unit}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Render the fixed-position popover at the end so it isn't clipped */}
       {openFilter === "role" && (
-        <PopoverList
-          type="role"
-          options={roleOptions}
-          value={selectedRole}
-          onSelect={setSelectedRole}
-        />
+        <PopoverList type="role" options={roleOptions} value={selectedRole} onSelect={setSelectedRole} />
       )}
       {openFilter === "unit" && (
-        <PopoverList
-          type="unit"
-          options={unitOptions}
-          value={selectedUnit}
-          onSelect={setSelectedUnit}
-        />
+        <PopoverList type="unit" options={unitOptions} value={selectedUnit} onSelect={setSelectedUnit} />
       )}
     </div>
   );
