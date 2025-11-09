@@ -3,9 +3,13 @@ import { useEffect, useState } from "react";
 
 export default function PayslipGenerate() {
   const [employeeName, setEmployeeName] = useState("");
-  const [employees, setEmployees] = useState([]); // <-- for dropdown
-  const [month, setMonth] = useState("");
+  const [employees, setEmployees] = useState([]); // for dropdown
+  const [month, setMonth] = useState(""); // "YYYY-MM"
+  const [payPerDay, setPayPerDay] = useState(""); // auto-filled, editable
+  const [workingUnit, setWorkingUnit] = useState(""); // auto-filled, disabled
   const [daysPresent, setDaysPresent] = useState("");
+  const [hasAdvance, setHasAdvance] = useState(false); // boolean toggle
+  const [advanceAmount, setAdvanceAmount] = useState(""); // enabled if hasAdvance
   const [generatedSlip, setGeneratedSlip] = useState(null);
 
   // fetch employees list once on load
@@ -22,9 +26,58 @@ export default function PayslipGenerate() {
     fetchEmployees();
   }, []);
 
+  // when employee is selected, auto-fill payPerDay and workingUnit from API data
+  useEffect(() => {
+    if (!employeeName) {
+      setPayPerDay("");
+      setWorkingUnit("");
+      return;
+    }
+    const selected = employees.find((emp) => emp?.name === employeeName);
+    if (selected) {
+      const detectedPayPerDay =
+        selected.payPerDay ??
+        selected.wagePerDay ??
+        selected.dailyWage ??
+        selected.salaryPerDay ??
+        "";
+      const detectedWorkingUnit =
+        selected.workingUnit ??
+        selected.unit ??
+        selected.department ??
+        "";
+
+      setPayPerDay(
+        detectedPayPerDay !== undefined && detectedPayPerDay !== null
+          ? String(detectedPayPerDay)
+          : ""
+      );
+      setWorkingUnit(
+        detectedWorkingUnit !== undefined && detectedWorkingUnit !== null
+          ? String(detectedWorkingUnit)
+          : ""
+      );
+    } else {
+      setPayPerDay("");
+      setWorkingUnit("");
+    }
+  }, [employeeName, employees]);
+
+  // Clear advance amount if user toggles off hasAdvance
+  useEffect(() => {
+    if (!hasAdvance) setAdvanceAmount("");
+  }, [hasAdvance]);
+
+  const totalPayout = (Number(daysPresent) || 0) * (Number(payPerDay) || 0);
+
+  // Label for month (e.g., "November")
+  const selectedMonthName = month
+    ? new Date(month + "-01").toLocaleString("default", { month: "long" })
+    : "";
+
   const handleGenerate = () => {
-    const wagePerDay = 1000; // dummy hardcoded
-    const totalPay = Number(daysPresent) * wagePerDay;
+    const wagePerDay = Number(payPerDay) || 0;
+    const totalPay = (Number(daysPresent) || 0) * wagePerDay;
 
     let m = "";
     let y = "";
@@ -38,9 +91,12 @@ export default function PayslipGenerate() {
       employeeName,
       month: m,
       year: y,
-      daysPresent,
+      workingUnit,
+      daysPresent: Number(daysPresent) || 0,
       wagePerDay,
-      totalPay,
+      hasAdvance,
+      advanceAmount: hasAdvance ? Number(advanceAmount) || 0 : 0,
+      totalPay, // payout before any deductions/adjustments
       generatedAt: new Date().toLocaleString(),
     };
 
@@ -56,9 +112,9 @@ export default function PayslipGenerate() {
         <h3 className="mb-4 text-center">Generate Payslip</h3>
 
         <div className="row g-3">
+          {/* Employee */}
           <div className="col-12">
             <label className="form-label fw-medium">Employee Name</label>
-
             <select
               className="form-select"
               value={employeeName}
@@ -66,13 +122,14 @@ export default function PayslipGenerate() {
             >
               <option value="">Select Employee</option>
               {employees.map((emp) => (
-                <option key={emp._id} value={emp.name}>
+                <option key={emp._id || emp.id || emp.name} value={emp.name}>
                   {emp.name}
                 </option>
               ))}
             </select>
           </div>
 
+          {/* Month */}
           <div className="col-12">
             <label className="form-label fw-medium">Month</label>
             <input
@@ -83,6 +140,31 @@ export default function PayslipGenerate() {
             />
           </div>
 
+          {/* Pay Per Day (auto-filled but editable) */}
+          <div className="col-12">
+            <label className="form-label fw-medium">Pay Per Day</label>
+            <input
+              type="number"
+              className="form-control"
+              value={payPerDay}
+              disabled
+              readOnly
+            />
+          </div>
+
+          {/* Working Unit (auto-filled and DISABLED) */}
+          <div className="col-12">
+            <label className="form-label fw-medium">Working Unit</label>
+            <input
+              type="text"
+              className="form-control"
+              value={workingUnit}
+              disabled
+              readOnly
+            />
+          </div>
+
+          {/* Days Present */}
           <div className="col-12">
             <label className="form-label fw-medium">Days Present</label>
             <input
@@ -90,6 +172,51 @@ export default function PayslipGenerate() {
               className="form-control"
               value={daysPresent}
               onChange={(e) => setDaysPresent(e.target.value)}
+            />
+          </div>
+
+          {/* Total Payout label uses the currently selected month */}
+          {daysPresent !== "" && (
+            <div className="col-12">
+              <label className="form-label fw-medium">
+                Total Payout{selectedMonthName ? ` (${selectedMonthName})` : ""}
+              </label>
+              <input
+                type="number"
+                className="form-control"
+                value={totalPayout}
+                readOnly
+                disabled
+              />
+            </div>
+          )}
+
+          {/* Active Advance toggle */}
+          <div className="col-12">
+            <label className="form-label fw-medium d-block">Active Advance</label>
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="activeAdvanceSwitch"
+                checked={hasAdvance}
+                onChange={(e) => setHasAdvance(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="activeAdvanceSwitch">
+                {hasAdvance ? "Yes" : "No"}
+              </label>
+            </div>
+          </div>
+
+          {/* Advance Amount (enabled only if Active Advance is true) */}
+          <div className="col-12">
+            <label className="form-label fw-medium">Advance Amount</label>
+            <input
+              type="number"
+              className="form-control"
+              value={advanceAmount}
+              onChange={(e) => setAdvanceAmount(e.target.value)}
+              disabled={!hasAdvance}
             />
           </div>
 
@@ -102,9 +229,9 @@ export default function PayslipGenerate() {
 
         {generatedSlip && (
           <div className="mt-5">
-            <h5 className="text-center">Payslip Output (dummy)</h5>
+            <h5 className="text-center">Payslip Output</h5>
             <pre className="border rounded p-3 bg-light">
-{JSON.stringify(generatedSlip, null, 2)}
+              {JSON.stringify(generatedSlip, null, 2)}
             </pre>
           </div>
         )}
