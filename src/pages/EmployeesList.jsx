@@ -24,6 +24,40 @@ export default function EmployeesList() {
   const roleIconRef = useRef(null);
   const unitIconRef = useRef(null);
 
+  // ======= HELPERS =======
+  const formatJoiningDate = (str) => {
+    if (!str) return "";
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
+    if (!m) return str;
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+
+    const d = new Date(yyyy, mm - 1, dd);
+    // guard against invalid calendar dates
+    if (
+      d.getFullYear() !== yyyy ||
+      d.getMonth() !== mm - 1 ||
+      d.getDate() !== dd
+    ) {
+      return str;
+    }
+
+    const monthsShort = [
+      "Jan","Feb","Mar","Apr","May","Jun",
+      "Jul","Aug","Sep","Oct","Nov","Dec",
+    ];
+    const suffix = (n) => {
+      if (n % 10 === 1 && n % 100 !== 11) return "st";
+      if (n % 10 === 2 && n % 100 !== 12) return "nd";
+      if (n % 10 === 3 && n % 100 !== 13) return "rd";
+      return "th";
+    };
+
+    return `${dd}${suffix(dd)} ${monthsShort[mm - 1]} ${yyyy}`;
+  };
+  // =======================
+
   // ======= FETCH FROM API =======
   useEffect(() => {
     const ctrl = new AbortController();
@@ -45,7 +79,7 @@ export default function EmployeesList() {
           throw new Error(txt || `HTTP ${res.status}`);
         }
         const json = await res.json();
-        // your response shape: { data: [...] }
+        // response shape: { data: [...] }
         setEmployees(Array.isArray(json.data) ? json.data : []);
       } catch (err) {
         if (err.name !== "AbortError") {
@@ -307,13 +341,18 @@ export default function EmployeesList() {
                         </span>
                       </div>
                     </th>
+
+                    {/* NEW: Joining Date */}
+                    <th className="py-3 px-3 text-dark fw-bold small text-uppercase">
+                      Joining Date
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {finalEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-5 text-center text-muted">
+                      <td colSpan={6} className="py-5 text-center text-muted">
                         No employee records found.
                       </td>
                     </tr>
@@ -323,13 +362,19 @@ export default function EmployeesList() {
                         <td className="py-3 px-3 srno-cell">{i + 1}</td>
                         <td className="py-3 px-3 fw-medium">
                           {emp.name}
-                          {emp.code ? <span className="text-muted small ms-2">({emp.code})</span> : null}
+                          {/* show employeeCode if available */}
+                          {emp.employeeCode ? (
+                            <span className="text-muted small ms-2">({emp.employeeCode})</span>
+                          ) : null}
                         </td>
                         <td className="py-3 px-3">₹ {Number(emp.wagePerDay).toFixed(2)}</td>
                         <td className="py-3 px-3">
                           <span className="badge role-badge">{emp.role}</span>
                         </td>
                         <td className="py-3 px-3">{emp.unit}</td>
+                        <td className="py-3 px-3">
+                          {formatJoiningDate(emp.joiningDate)}
+                        </td>
                       </tr>
                     ))
                   )}
