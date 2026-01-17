@@ -18,6 +18,7 @@ import PayslipGenerate from "./pages/PayslipGenerate";
 import Advance from "./pages/Advance";
 import AdvanceList from "./pages/AdvanceList";
 import AdvanceGenerate from "./pages/AdvanceGenerate";
+import AdvanceDetail from "./pages/AdvanceDetail";
 //import AdvancesUpdate from "./pages/AdvancesUpdate";
 
 import RequireAuth from "./components/RequireAuth";
@@ -57,6 +58,7 @@ export default function App() {
               {/* Sub-pages */}
               <Route path="list" element={<AdvanceList />} />
               <Route path="add" element={<AdvanceGenerate />} />
+              <Route path="detail" element={<AdvanceDetail />} />
               {/* <Route path="update" element={<AdvancesUpdate />} /> */}
             </Route>
 

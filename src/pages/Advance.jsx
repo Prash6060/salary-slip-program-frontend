@@ -59,10 +59,10 @@ export default function Advance() {
       onClick: () => navigate("/advances/update"),
     },
     {
-      title: "Advance Reports",
-      subtitle: "Generate reports and summaries",
+      title: "Advance History Data",
+      subtitle: "Reporting data for past advance details",
       emoji: "📊",
-      onClick: () => navigate("/advances/reports"),
+      onClick: () => navigate("/advances/detail"),
     },
   ];
 
