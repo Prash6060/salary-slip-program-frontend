@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 
 export default function PayslipGenerate() {
   const [employeeName, setEmployeeName] = useState("");
+  const [employeeCode, setEmployeeCode] = useState(""); // new field
   const [employees, setEmployees] = useState([]); // for dropdown
-  const [month, setMonth] = useState(""); // "YYYY-MM"
+  const [month, setMonth] = useState(""); // "YYYY-MM" from input
   const [payPerDay, setPayPerDay] = useState(""); // auto-filled, editable
   const [workingUnit, setWorkingUnit] = useState(""); // auto-filled, disabled
   const [daysPresent, setDaysPresent] = useState("");
@@ -26,40 +27,29 @@ export default function PayslipGenerate() {
     fetchEmployees();
   }, []);
 
-  // when employee is selected, auto-fill payPerDay and workingUnit from API data
+  // when employee is selected, auto-fill payPerDay, workingUnit, and employeeCode
   useEffect(() => {
     if (!employeeName) {
       setPayPerDay("");
       setWorkingUnit("");
+      setEmployeeCode("");
       return;
     }
     const selected = employees.find((emp) => emp?.name === employeeName);
     if (selected) {
       const detectedPayPerDay =
-        selected.payPerDay ??
-        selected.wagePerDay ??
-        selected.dailyWage ??
-        selected.salaryPerDay ??
-        "";
+        selected.payPerDay ?? selected.wagePerDay ?? selected.dailyWage ?? selected.salaryPerDay ?? "";
       const detectedWorkingUnit =
-        selected.workingUnit ??
-        selected.unit ??
-        selected.department ??
-        "";
+        selected.workingUnit ?? selected.unit ?? selected.department ?? "";
+      const detectedEmployeeCode = selected.employeeCode ?? selected.code ?? "";
 
-      setPayPerDay(
-        detectedPayPerDay !== undefined && detectedPayPerDay !== null
-          ? String(detectedPayPerDay)
-          : ""
-      );
-      setWorkingUnit(
-        detectedWorkingUnit !== undefined && detectedWorkingUnit !== null
-          ? String(detectedWorkingUnit)
-          : ""
-      );
+      setPayPerDay(detectedPayPerDay ? String(detectedPayPerDay) : "");
+      setWorkingUnit(detectedWorkingUnit ? String(detectedWorkingUnit) : "");
+      setEmployeeCode(detectedEmployeeCode ? String(detectedEmployeeCode) : "");
     } else {
       setPayPerDay("");
       setWorkingUnit("");
+      setEmployeeCode("");
     }
   }, [employeeName, employees]);
 
@@ -70,75 +60,76 @@ export default function PayslipGenerate() {
 
   const totalPayout = (Number(daysPresent) || 0) * (Number(payPerDay) || 0);
 
+  // Convert YYYY-MM to MM-YYYY for backend
+  const getMonthYear = () => {
+    if (!month) return "";
+    const [year, mon] = month.split("-");
+    return `${mon}-${year}`;
+  };
+
   // Label for month (e.g., "November")
   const selectedMonthName = month
     ? new Date(month + "-01").toLocaleString("default", { month: "long" })
     : "";
 
-  const handleGenerate = () => {
-    const wagePerDay = Number(payPerDay) || 0;
-    const totalPay = (Number(daysPresent) || 0) * wagePerDay;
+  const handleGenerate = async () => {
+    const monthYear = getMonthYear();
+    const totalPay = (Number(daysPresent) || 0) * (Number(payPerDay) || 0);
 
-    let m = "";
-    let y = "";
-    if (month) {
-      const parts = month.split("-");
-      y = parts[0];
-      m = parts[1];
-    }
-
-    const slip = {
+    const payload = {
       employeeName,
-      month: m,
-      year: y,
+      employeeCode,
+      monthYear,
       workingUnit,
       daysPresent: Number(daysPresent) || 0,
-      wagePerDay,
+      wagePerDay: Number(payPerDay) || 0,
       hasAdvance,
       advanceAmount: hasAdvance ? Number(advanceAmount) || 0 : 0,
-      totalPay, // payout before any deductions/adjustments
+      totalPay,
       generatedAt: new Date().toLocaleString(),
     };
 
-    setGeneratedSlip(slip);
+    try {
+      const res = await fetch("http://localhost:3000/api/slip/add-slip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setGeneratedSlip(data.data);
+        alert("Payslip generated successfully!");
+      } else {
+        alert(data.msg || "Failed to generate payslip");
+      }
+    } catch (err) {
+      console.error("Error generating payslip:", err);
+      alert("Server error. Check console.");
+    }
   };
 
   const getDaysInSelectedMonth = () => {
-    if (!month) return 31; // fallback
-
+    if (!month) return 31;
     const [year, monthIndex] = month.split("-").map(Number);
-    // monthIndex: 1–12 → JS expects 0–11
     return new Date(year, monthIndex, 0).getDate();
   };
 
   useEffect(() => {
     if (!month) return;
-
     const maxDays = getDaysInSelectedMonth();
-    if (Number(daysPresent) > maxDays) {
-      setDaysPresent(String(maxDays));
-    }
+    if (Number(daysPresent) > maxDays) setDaysPresent(String(maxDays));
   }, [month]);
 
-
   return (
-    <div
-      className="container d-flex flex-column justify-content-center align-items-center pt-5 pb-5"
-      style={{ minHeight: "calc(100vh - 56px)" }}
-    >
-
+    <div className="container d-flex flex-column justify-content-center align-items-center pt-5 pb-5" style={{ minHeight: "calc(100vh - 56px)" }}>
       <div style={{ width: 500, maxWidth: "90%" }}>
         <h3 className="mb-4 text-center">Generate Payslip</h3>
-
         <div className="row g-3">
           {/* Employee */}
           <div className="col-12">
             <label className="form-label fw-medium">Employee Name</label>
-            <select
-              className="form-select"
-              value={employeeName}
-              onChange={(e) => setEmployeeName(e.target.value)}
-            >
+            <select className="form-select" value={employeeName} onChange={(e) => setEmployeeName(e.target.value)}>
               <option value="">Select Employee</option>
               {employees.map((emp) => (
                 <option key={emp._id || emp.id || emp.name} value={emp.name}>
@@ -151,45 +142,24 @@ export default function PayslipGenerate() {
           {/* Month */}
           <div className="col-12">
             <label className="form-label fw-medium">Month</label>
-            <input
-              type="month"
-              className="form-control"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-            />
+            <input type="month" className="form-control" value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
 
-          {/* Pay Per Day (auto-filled but editable) */}
+          {/* Pay Per Day */}
           <div className="col-12">
             <label className="form-label fw-medium">Pay Per Day</label>
-            <input
-              type="number"
-              className="form-control"
-              value={payPerDay}
-              disabled
-              readOnly
-            />
+            <input type="number" className="form-control" value={payPerDay} disabled readOnly />
           </div>
 
-          {/* Working Unit (auto-filled and DISABLED) */}
+          {/* Working Unit */}
           <div className="col-12">
             <label className="form-label fw-medium">Working Unit</label>
-            <input
-              type="text"
-              className="form-control"
-              value={workingUnit}
-              disabled
-              readOnly
-            />
+            <input type="text" className="form-control" value={workingUnit} disabled readOnly />
           </div>
 
           {/* Days Present */}
           <div className="col-12">
-            <label className="form-label fw-medium">
-              Days Present
-              {month && ` (Max ${getDaysInSelectedMonth()})`}
-            </label>
-
+            <label className="form-label fw-medium">Days Present{month && ` (Max ${getDaysInSelectedMonth()})`}</label>
             <input
               type="number"
               className="form-control"
@@ -199,77 +169,38 @@ export default function PayslipGenerate() {
               inputMode="numeric"
               pattern="[0-9]*"
               onChange={(e) => {
-                let value = e.target.value;
-
-                // allow empty while typing
-                if (value === "") {
-                  setDaysPresent("");
-                  return;
-                }
-
-                // digits only
-                if (!/^\d+$/.test(value)) return;
-
-                const numericValue = Number(value);
+                let val = e.target.value;
+                if (val === "") { setDaysPresent(""); return; }
+                if (!/^\d+$/.test(val)) return;
+                const num = Number(val);
                 const maxDays = getDaysInSelectedMonth();
-
-                if (numericValue <= maxDays) {
-                  setDaysPresent(value);
-                }
+                if (num <= maxDays) setDaysPresent(val);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                  e.preventDefault();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault(); }}
               onWheel={(e) => e.target.blur()}
             />
           </div>
 
-
-          {/* Total Payout label uses the currently selected month */}
+          {/* Total Payout */}
           {daysPresent !== "" && (
             <div className="col-12">
-              <label className="form-label fw-medium">
-                Total Payout{selectedMonthName ? ` (${selectedMonthName})` : ""}
-              </label>
-              <input
-                type="number"
-                className="form-control"
-                value={totalPayout}
-                readOnly
-                disabled
-              />
+              <label className="form-label fw-medium">Total Payout{selectedMonthName ? ` (${selectedMonthName})` : ""}</label>
+              <input type="number" className="form-control" value={totalPayout} readOnly disabled />
             </div>
           )}
 
           {/* Active Advance toggle */}
           <div className="col-12">
-            <label className="form-label fw-medium d-block">
-              Active Advance
-              {selectedMonthName ? ` (${selectedMonthName})` : ""}
-            </label>
-
+            <label className="form-label fw-medium d-block">Active Advance{selectedMonthName ? ` (${selectedMonthName})` : ""}</label>
             <div className="form-check form-switch">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                id="activeAdvanceSwitch"
-                checked={hasAdvance}
-                onChange={(e) => setHasAdvance(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="activeAdvanceSwitch">
-                {hasAdvance ? "Yes" : "No"}
-              </label>
+              <input className="form-check-input" type="checkbox" checked={hasAdvance} onChange={(e) => setHasAdvance(e.target.checked)} />
+              <label className="form-check-label">{hasAdvance ? "Yes" : "No"}</label>
             </div>
           </div>
 
-          {/* Advance Amount (enabled only if Active Advance is true) */}
+          {/* Advance Amount */}
           <div className="col-12">
-            <label className="form-label fw-medium">
-              Advance Amount
-            </label>
-
+            <label className="form-label fw-medium">Advance Amount</label>
             <input
               type="number"
               className="form-control"
@@ -280,42 +211,25 @@ export default function PayslipGenerate() {
               pattern="[0-9]*"
               disabled={!hasAdvance}
               onChange={(e) => {
-                let value = e.target.value;
-
-                // allow empty while typing
-                if (value === "") {
-                  setAdvanceAmount("");
-                  return;
-                }
-
-                // digits only (no negative / no decimal)
-                if (!/^\d+$/.test(value)) return;
-
-                setAdvanceAmount(value);
+                let val = e.target.value;
+                if (val === "") { setAdvanceAmount(""); return; }
+                if (!/^\d+$/.test(val)) return;
+                setAdvanceAmount(val);
               }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                  e.preventDefault();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault(); }}
               onWheel={(e) => e.target.blur()}
             />
           </div>
 
-
           <div className="col-12">
-            <button className="btn btn-primary w-100 mt-2" onClick={handleGenerate}>
-              Generate Payslip
-            </button>
+            <button className="btn btn-primary w-100 mt-2" onClick={handleGenerate}>Generate Payslip</button>
           </div>
         </div>
 
         {generatedSlip && (
           <div className="mt-5">
             <h5 className="text-center">Payslip Output</h5>
-            <pre className="border rounded p-3 bg-light">
-              {JSON.stringify(generatedSlip, null, 2)}
-            </pre>
+            <pre className="border rounded p-3 bg-light">{JSON.stringify(generatedSlip, null, 2)}</pre>
           </div>
         )}
       </div>

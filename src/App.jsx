@@ -12,10 +12,13 @@ import EmployeeDelete from "./pages/EmployeeDelete";
 
 // Payslips
 import Payslips from "./pages/PaySlips";
-// import PayslipsList from "./pages/PayslipsList";            // /payslips/list
-import PayslipGenerate from "./pages/PayslipGenerate";      // /payslips/generate
-// import PayslipsBulkGenerate from "./pages/PayslipsBulkGenerate"; // /payslips/bulk-generate
-// import PayslipsSettings from "./pages/PayslipsSettings";    // /payslips/settings
+import PayslipGenerate from "./pages/PayslipGenerate";
+
+// Advances
+import Advances from "./pages/Advance";
+import AdvancesList from "./pages/AdvanceList";
+//import AdvancesAdd from "./pages/AdvancesAdd";
+//import AdvancesUpdate from "./pages/AdvancesUpdate";
 
 import RequireAuth from "./components/RequireAuth";
 import NavBar from "./components/NavBar";
@@ -34,9 +37,7 @@ export default function App() {
 
             {/* Employees section */}
             <Route path="/employees">
-              {/* Landing/options grid */}
               <Route index element={<Employees />} />
-              {/* Sub-pages */}
               <Route path="list" element={<EmployeesList />} />
               <Route path="onboard" element={<EmployeeOnboard />} />
               <Route path="update-wage" element={<EmployeeUpdateWage />} />
@@ -45,13 +46,18 @@ export default function App() {
 
             {/* Payslips section */}
             <Route path="/payslips">
-              {/* Landing/options grid */}
               <Route index element={<Payslips />} />
-              {/* Sub-pages */}
               <Route path="generate" element={<PayslipGenerate />} />
-              {/* <Route path="list" element={<PayslipsList />} /> */}
-              {/* <Route path="bulk-generate" element={<PayslipsBulkGenerate />} /> */}
-              {/* <Route path="settings" element={<PayslipsSettings />} /> */}
+            </Route>
+
+            {/* Advances section */}
+            <Route path="/advances">
+              {/* Landing/options grid */}
+              <Route index element={<Advances />} />
+              {/* Sub-pages */}
+              <Route path="list" element={<AdvancesList />} />
+              {/*<Route path="add" element={<AdvancesAdd />} /> */}
+              {/* <Route path="update" element={<AdvancesUpdate />} /> */}
             </Route>
 
             {/* future protected routes here */}
