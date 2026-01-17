@@ -103,11 +103,30 @@ export default function PayslipGenerate() {
     setGeneratedSlip(slip);
   };
 
+  const getDaysInSelectedMonth = () => {
+    if (!month) return 31; // fallback
+
+    const [year, monthIndex] = month.split("-").map(Number);
+    // monthIndex: 1–12 → JS expects 0–11
+    return new Date(year, monthIndex, 0).getDate();
+  };
+
+  useEffect(() => {
+    if (!month) return;
+
+    const maxDays = getDaysInSelectedMonth();
+    if (Number(daysPresent) > maxDays) {
+      setDaysPresent(String(maxDays));
+    }
+  }, [month]);
+
+
   return (
     <div
-      className="container d-flex flex-column justify-content-center align-items-center"
-      style={{ height: "calc(100vh - 56px)" }} // exact center under navbar
+      className="container d-flex flex-column justify-content-center align-items-center pt-5 pb-5"
+      style={{ minHeight: "calc(100vh - 56px)" }}
     >
+
       <div style={{ width: 500, maxWidth: "90%" }}>
         <h3 className="mb-4 text-center">Generate Payslip</h3>
 
@@ -166,14 +185,47 @@ export default function PayslipGenerate() {
 
           {/* Days Present */}
           <div className="col-12">
-            <label className="form-label fw-medium">Days Present</label>
+            <label className="form-label fw-medium">
+              Days Present
+              {month && ` (Max ${getDaysInSelectedMonth()})`}
+            </label>
+
             <input
               type="number"
               className="form-control"
               value={daysPresent}
-              onChange={(e) => setDaysPresent(e.target.value)}
+              min={0}
+              step={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              onChange={(e) => {
+                let value = e.target.value;
+
+                // allow empty while typing
+                if (value === "") {
+                  setDaysPresent("");
+                  return;
+                }
+
+                // digits only
+                if (!/^\d+$/.test(value)) return;
+
+                const numericValue = Number(value);
+                const maxDays = getDaysInSelectedMonth();
+
+                if (numericValue <= maxDays) {
+                  setDaysPresent(value);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                }
+              }}
+              onWheel={(e) => e.target.blur()}
             />
           </div>
+
 
           {/* Total Payout label uses the currently selected month */}
           {daysPresent !== "" && (
@@ -193,7 +245,11 @@ export default function PayslipGenerate() {
 
           {/* Active Advance toggle */}
           <div className="col-12">
-            <label className="form-label fw-medium d-block">Active Advance</label>
+            <label className="form-label fw-medium d-block">
+              Active Advance
+              {selectedMonthName ? ` (${selectedMonthName})` : ""}
+            </label>
+
             <div className="form-check form-switch">
               <input
                 className="form-check-input"
@@ -210,15 +266,42 @@ export default function PayslipGenerate() {
 
           {/* Advance Amount (enabled only if Active Advance is true) */}
           <div className="col-12">
-            <label className="form-label fw-medium">Advance Amount</label>
+            <label className="form-label fw-medium">
+              Advance Amount
+            </label>
+
             <input
               type="number"
               className="form-control"
               value={advanceAmount}
-              onChange={(e) => setAdvanceAmount(e.target.value)}
+              min={0}
+              step={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
               disabled={!hasAdvance}
+              onChange={(e) => {
+                let value = e.target.value;
+
+                // allow empty while typing
+                if (value === "") {
+                  setAdvanceAmount("");
+                  return;
+                }
+
+                // digits only (no negative / no decimal)
+                if (!/^\d+$/.test(value)) return;
+
+                setAdvanceAmount(value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                }
+              }}
+              onWheel={(e) => e.target.blur()}
             />
           </div>
+
 
           <div className="col-12">
             <button className="btn btn-primary w-100 mt-2" onClick={handleGenerate}>
