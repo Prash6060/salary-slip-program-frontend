@@ -69,11 +69,11 @@ export default function PayslipGenerate() {
   };
 
   /* ================= CALCULATIONS ================= */
-  const totalPayout =
+  const salaryPayout =
     (Number(daysPresent) || 0) * (Number(payPerDay) || 0);
 
   const finalPayout =
-    totalPayout - (Number(setOffAdvance) || 0);
+    salaryPayout - (Number(setOffAdvance) || 0);
 
   /* ================= GET MAX DAYS HELPER ================= */
 
@@ -92,7 +92,7 @@ export default function PayslipGenerate() {
       month,
       daysPresent: Number(daysPresent),
       wagePerDay: Number(payPerDay),
-      totalPayout,
+      salaryPayout,
       hasAdvance,
       pendingAdvance,
       setOffAdvance,
@@ -201,8 +201,8 @@ export default function PayslipGenerate() {
 
 
         {/* Total */}
-        <label className="form-label mt-3">Total Payout</label>
-        <input className="form-control" value={totalPayout} disabled />
+        <label className="form-label mt-3">Salary Payout</label>
+        <input className="form-control" value={salaryPayout} disabled />
 
         {/* Active Advance */}
         <label className="form-label mt-3">Active Advance</label>
@@ -265,7 +265,7 @@ export default function PayslipGenerate() {
 
 
             <label className="form-label mt-3">
-              Final Payout After Advance
+              Final Payout After Advance Cutoff
             </label>
             <input
               className="form-control"
