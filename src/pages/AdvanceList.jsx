@@ -5,49 +5,55 @@ export default function AdvanceList() {
   const [advances, setAdvances] = useState([]);
   const [search, setSearch] = useState("");
 
-  // Dummy data for demonstration
+  /* ================= FETCH ADVANCE DATA ================= */
   useEffect(() => {
-    const dummyData = [
-      {
-        id: 1,
-        employeeName: "ASHISH FABS",
-        monthYear: "01-2026",
-        amount: 5000,
-        status: "Pending",
-      },
-      {
-        id: 2,
-        employeeName: "RPRASHIL KUMAR",
-        monthYear: "01-2026",
-        amount: 2000,
-        status: "Paid",
-      },
-      {
-        id: 3,
-        employeeName: "ASHISH FABS",
-        monthYear: "02-2026",
-        amount: 3000,
-        status: "Pending",
-      },
-    ];
-    setAdvances(dummyData);
+    const fetchAdvances = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/advance/list-advance");
+        const json = await res.json();
+        if (json.data) {
+          setAdvances(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch advances:", err);
+      }
+    };
+
+    fetchAdvances();
   }, []);
 
-  const filtered = advances.filter(
+  /* ================= AGGREGATE POSITIVE ADVANCE ================= */
+  const aggregateByEmployee = () => {
+    const map = {};
+
+    advances.forEach((adv) => {
+      if (!map[adv.employeeName]) map[adv.employeeName] = 0;
+      map[adv.employeeName] += Number(adv.advanceAmount || 0);
+    });
+
+    // Keep only employees with positive aggregate advance
+    const result = Object.entries(map)
+      .map(([employeeName, total]) => ({ employeeName, total }))
+      .filter((e) => e.total > 0);
+
+    return result;
+  };
+
+  const filtered = aggregateByEmployee().filter(
     (a) =>
       a.employeeName.toLowerCase().includes(search.toLowerCase()) ||
-      a.monthYear.includes(search)
+      a.total.toString().includes(search)
   );
 
   return (
     <div className="container py-4">
-      <h3 className="mb-4">Advances List</h3>
+      <h3 className="mb-4">Advance List (Positive Aggregates)</h3>
 
       <div className="mb-3" style={{ maxWidth: 300 }}>
         <input
           type="text"
           className="form-control"
-          placeholder="Search by employee or month"
+          placeholder="Search by employee or amount"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -59,25 +65,21 @@ export default function AdvanceList() {
             <tr>
               <th>#</th>
               <th>Employee Name</th>
-              <th>Month-Year</th>
-              <th>Advance Amount (₹)</th>
-              <th>Status</th>
+              <th>Net Advance Amount (₹)</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length > 0 ? (
               filtered.map((adv, idx) => (
-                <tr key={adv.id}>
+                <tr key={adv.employeeName}>
                   <td>{idx + 1}</td>
                   <td>{adv.employeeName}</td>
-                  <td>{adv.monthYear}</td>
-                  <td>{adv.amount}</td>
-                  <td>{adv.status}</td>
+                  <td>{adv.total}</td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted">
+                <td colSpan={3} className="text-center text-muted">
                   No records found
                 </td>
               </tr>

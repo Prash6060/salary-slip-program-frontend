@@ -47,8 +47,8 @@ export default function Advance() {
       onClick: () => navigate("/advances/add"),
     },
     {
-      title: "View Advances",
-      subtitle: "Browse all employee advances",
+      title: "View Pending Advances",
+      subtitle: "Browse all employee pending advances",
       emoji: "👀",
       onClick: () => navigate("/advances/list"),
     },
