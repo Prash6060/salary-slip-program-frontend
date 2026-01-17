@@ -19,7 +19,8 @@ export default function NavBar() {
     <>
       <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
         <div className="container-fluid px-4">
-          <span className="navbar-brand fw-semibold" style={{ letterSpacing: ".3px" }}>
+          <span className="navbar-brand fw-semibold" style={{ letterSpacing: ".3px" }}
+          onClick={() => navigate("/")}>
             Salary Manager
           </span>
 
