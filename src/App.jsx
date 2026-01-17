@@ -15,9 +15,9 @@ import Payslips from "./pages/PaySlips";
 import PayslipGenerate from "./pages/PayslipGenerate";
 
 // Advances
-import Advances from "./pages/Advance";
-import AdvancesList from "./pages/AdvanceList";
-//import AdvancesAdd from "./pages/AdvancesAdd";
+import Advance from "./pages/Advance";
+import AdvanceList from "./pages/AdvanceList";
+import AdvanceGenerate from "./pages/AdvanceGenerate";
 //import AdvancesUpdate from "./pages/AdvancesUpdate";
 
 import RequireAuth from "./components/RequireAuth";
@@ -53,10 +53,10 @@ export default function App() {
             {/* Advances section */}
             <Route path="/advances">
               {/* Landing/options grid */}
-              <Route index element={<Advances />} />
+              <Route index element={<Advance />} />
               {/* Sub-pages */}
-              <Route path="list" element={<AdvancesList />} />
-              {/*<Route path="add" element={<AdvancesAdd />} /> */}
+              <Route path="list" element={<AdvanceList />} />
+              <Route path="add" element={<AdvanceGenerate />} />
               {/* <Route path="update" element={<AdvancesUpdate />} /> */}
             </Route>
 
