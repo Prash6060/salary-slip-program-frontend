@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 export default function AdvanceGenerate() {
   const [employees, setEmployees] = useState([]);
   const [employeeName, setEmployeeName] = useState("");
-  const [unit, setUnit] = useState(""); // auto-filled and disabled
+  const [employeeCode, setEmployeeCode] = useState(""); // required by backend
+  const [unit, setUnit] = useState(""); // auto-filled
   const [advanceDate, setAdvanceDate] = useState(""); // dd-mm-yyyy
   const [advanceAmount, setAdvanceAmount] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
@@ -14,7 +15,9 @@ export default function AdvanceGenerate() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/employee/list-employee");
+        const res = await fetch(
+          "http://localhost:3000/api/employee/list-employee"
+        );
         const json = await res.json();
         if (json?.data) setEmployees(json.data);
       } catch (err) {
@@ -24,17 +27,20 @@ export default function AdvanceGenerate() {
     fetchEmployees();
   }, []);
 
-  // Update unit when employee is selected
+  // Update employeeCode and unit when employee is selected
   useEffect(() => {
     if (!employeeName) {
       setUnit("");
+      setEmployeeCode("");
       return;
     }
     const emp = employees.find((e) => e.name === employeeName);
     if (emp) {
       setUnit(emp.unit ?? emp.workingUnit ?? "");
+      setEmployeeCode(emp.employeeCode ?? "");
     } else {
       setUnit("");
+      setEmployeeCode("");
     }
   }, [employeeName, employees]);
 
@@ -52,28 +58,47 @@ export default function AdvanceGenerate() {
     setAdvanceDate(value);
   };
 
-  // Handle generate
-  const handleGenerate = () => {
-    if (!employeeName || !advanceDate || !advanceAmount || !approvedBy) {
+  // Handle generate / POST to backend
+  const handleGenerate = async () => {
+    if (!employeeName || !employeeCode || !advanceDate || !advanceAmount || !approvedBy) {
       alert("Please fill all required fields");
       return;
     }
 
-    const advance = {
+    const advancePayload = {
       employeeName,
+      employeeCode,
       unit,
       advanceDate,
       advanceAmount: Number(advanceAmount),
       approvedBy,
-      status: "Pending",
-      generatedAt: new Date().toLocaleString(),
     };
 
-    setGeneratedAdvance(advance);
-    // reset
-    setAdvanceDate("");
-    setAdvanceAmount("");
-    setApprovedBy("");
+    try {
+      const res = await fetch("http://localhost:3000/api/advance/add-advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(advancePayload),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setGeneratedAdvance(data.data);
+        alert("Advance added successfully!");
+        // reset form
+        setEmployeeName("");
+        setEmployeeCode("");
+        setUnit("");
+        setAdvanceDate("");
+        setAdvanceAmount("");
+        setApprovedBy("");
+      } else {
+        alert(data.msg || "Failed to add advance");
+      }
+    } catch (err) {
+      console.error("Error adding advance:", err);
+      alert("Error adding advance");
+    }
   };
 
   return (
@@ -85,7 +110,7 @@ export default function AdvanceGenerate() {
         <h3 className="mb-4 text-center">Generate Advance</h3>
 
         <div className="row g-3">
-          {/* Employee */}
+          {/* Employee Name */}
           <div className="col-12">
             <label className="form-label fw-medium">Employee Name</label>
             <select
@@ -136,7 +161,7 @@ export default function AdvanceGenerate() {
               min={0}
               onChange={(e) => {
                 let value = e.target.value;
-                if (!/^\d*$/.test(value)) return; // digits only
+                if (!/^\d*$/.test(value)) return;
                 setAdvanceAmount(value);
               }}
               onKeyDown={(e) => {
